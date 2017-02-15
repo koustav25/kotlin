@@ -36,6 +36,7 @@ import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget.*
 import org.jetbrains.kotlin.idea.completion.handlers.WithTailInsertHandler
 import org.jetbrains.kotlin.idea.completion.handlers.createKeywordConstructLookupElement
+import org.jetbrains.kotlin.idea.project.getLanguageVersionSettings
 import org.jetbrains.kotlin.idea.project.languageVersionSettings
 import org.jetbrains.kotlin.lexer.KtKeywordToken
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
@@ -385,7 +386,8 @@ object KeywordCompletion {
     }
 
     private fun isSupportedAtLanguageLevel(keyword: KtKeywordToken, position: PsiElement): Boolean {
-        val languageVersionSettings = ModuleUtilCore.findModuleForPsiElement(position)?.languageVersionSettings ?: LanguageVersionSettingsImpl.DEFAULT
+        val languageVersionSettings = ModuleUtilCore.findModuleForPsiElement(position)?.languageVersionSettings
+                                      ?: LanguageVersionSettingsImpl.DEFAULT
         val feature = when (keyword) {
             KtTokens.TYPE_ALIAS_KEYWORD -> LanguageFeature.TypeAliases
             KtTokens.HEADER_KEYWORD, KtTokens.IMPL_KEYWORD -> LanguageFeature.MultiPlatformProjects

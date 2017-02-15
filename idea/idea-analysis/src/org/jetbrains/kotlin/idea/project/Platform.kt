@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.idea.caches.resolve.getResolutionFacade
 import org.jetbrains.kotlin.idea.compiler.configuration.KotlinCommonCompilerArgumentsHolder
 import org.jetbrains.kotlin.idea.compiler.configuration.KotlinCompilerSettings
+import org.jetbrains.kotlin.idea.facet.getLibraryLanguageLevel
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.resolve.TargetPlatform
 
@@ -42,29 +43,37 @@ private val multiPlatformProjectsArg: String by lazy {
     "-" + CommonCompilerArguments::multiPlatform.annotations.filterIsInstance<Argument>().single().value
 }
 
-val Project.languageVersionSettings: LanguageVersionSettings
-    get() {
-        val arguments = KotlinCommonCompilerArgumentsHolder.getInstance(this).settings
-        val languageVersion = LanguageVersion.fromVersionString(arguments.languageVersion) ?: LanguageVersion.LATEST
-        val apiVersion = ApiVersion.createByLanguageVersion(LanguageVersion.fromVersionString(arguments.apiVersion) ?: languageVersion)
-        val compilerSettings = KotlinCompilerSettings.getInstance(this).settings
-        val extraLanguageFeatures = getExtraLanguageFeatures(
-                TargetPlatformKind.Common,
-                CoroutineSupport.byCompilerArguments(KotlinCommonCompilerArgumentsHolder.getInstance(this).settings),
-                compilerSettings,
-                null
-        )
-        return LanguageVersionSettingsImpl(
-                languageVersion,
-                apiVersion,
-                extraLanguageFeatures
-        )
-    }
+fun Project.getLanguageVersionSettings(contextModule: Module? = null): LanguageVersionSettings {
+    val arguments = KotlinCommonCompilerArgumentsHolder.getInstance(this).settings
+    val languageVersion =
+            LanguageVersion.fromVersionString(arguments.languageVersion)
+            ?: contextModule?.let {
+                getLibraryLanguageLevel(
+                        it,
+                        null,
+                        KotlinFacetSettingsProvider.getInstance(this).getSettings(it).versionInfo.targetPlatformKind
+                )
+            }
+            ?: LanguageVersion.LATEST
+    val apiVersion = ApiVersion.createByLanguageVersion(LanguageVersion.fromVersionString(arguments.apiVersion) ?: languageVersion)
+    val compilerSettings = KotlinCompilerSettings.getInstance(this).settings
+    val extraLanguageFeatures = getExtraLanguageFeatures(
+            TargetPlatformKind.Common,
+            CoroutineSupport.byCompilerArguments(KotlinCommonCompilerArgumentsHolder.getInstance(this).settings),
+            compilerSettings,
+            null
+    )
+    return LanguageVersionSettingsImpl(
+            languageVersion,
+            apiVersion,
+            extraLanguageFeatures
+    )
+}
 
 val Module.languageVersionSettings: LanguageVersionSettings
     get() {
         val facetSettings = KotlinFacetSettingsProvider.getInstance(project).getSettings(this)
-        if (facetSettings.useProjectSettings) return project.languageVersionSettings
+        if (facetSettings.useProjectSettings) return project.getLanguageVersionSettings(this)
         val versionInfo = facetSettings.versionInfo
         val languageVersion = versionInfo.languageLevel ?: LanguageVersion.LATEST
         val apiVersion = versionInfo.apiLevel ?: languageVersion
